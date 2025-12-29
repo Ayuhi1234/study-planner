@@ -1,20 +1,41 @@
 name: Build Android App
-on: [push]
+
+on:
+  push:
+    branches:
+      - main
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-java@v3
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
-      - uses: actions/setup-node@v3
+
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install --force
+
+      # --- THE MAGIC FIX ---
+      # 1. Force delete the corrupted Windows folder
+      - run: rm -rf node_modules
+      - run: rm -f package-lock.json
+
+      # 2. Install fresh Linux versions of the tools
+      - run: npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6 --force
+      # ---------------------
+
+      # 3. Sync the project
       - run: npx cap sync
-      - run: cd android && ./gradlew assembleDebug
+
+      # 4. Build the APK
+      - run: cd android && chmod +x gradlew && ./gradlew assembleDebug
+
+      # 5. Upload result
       - uses: actions/upload-artifact@v4
         with:
           name: app-debug
